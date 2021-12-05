@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "qsn"
+version = "0.1.0"
+description = ""
+authors = ["Gar Higgins <gar@cambly.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+requests = "^2.26.0"
+twilio = "^7.3.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
