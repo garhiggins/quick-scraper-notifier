@@ -28,7 +28,7 @@ if args.notify_if_present:
         client.messages.create(
             to=twilio_phone_to,
             from_=twilio_phone_from,
-            body=f"QSN: {args.notify_if_present} found at {args.url}"
+            body=f"QSN: \"{args.notify_if_present}\" found at {args.url}"
         )
 if args.notify_if_missing:
     print(f"missing is {args.notify_if_missing}")
@@ -36,5 +36,5 @@ if args.notify_if_missing:
         client.messages.create(
             to=twilio_phone_to,
             from_=twilio_phone_from,
-            body=f"QSN: {args.notify_if_missing} missing from {args.url}"
+            body=f"QSN: \"{args.notify_if_missing}\" missing from {args.url}"
         )
