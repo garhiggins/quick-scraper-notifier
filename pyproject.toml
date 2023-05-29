@@ -5,7 +5,7 @@ description = ""
 authors = ["Gar Higgins <gar@cambly.com>"]
 
 [tool.poetry.dependencies]
-python = "3.10.0"
+python = "3.10.11"
 requests = "^2.26.0"
 twilio = "^7.3.2"
 python-dateutil = "^2.8.2"
