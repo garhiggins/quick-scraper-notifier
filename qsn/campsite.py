@@ -46,9 +46,9 @@ def process_response(availabilities):
     open_campgrounds = collections.defaultdict(list)
     for campground_id, availability in availabilities.items():
         for campsite in availability["campsites"].values():
-            availability = campsite["availabilities"][
+            availability = campsite["availabilities"].get(
                 start_date.strftime("%Y-%m-%dT00:00:00Z")
-            ]
+            )
             if availability == "Available":
                 CAMPGROUND_NAMES[
                     campground_id
@@ -95,7 +95,8 @@ def fetch_availability(start_date):
                 time.sleep(28)
         else:
             raise Exception(f"Received [{response.status_code}] from recreation.gov")
-        time.sleep(3)
+        if not args.dry_run:
+            time.sleep(3)
     return availability
 
 
@@ -104,7 +105,6 @@ try:
     availabilities = fetch_availability(start_date)
     process_response(availabilities)
 except Exception as e:
-    print(datetime.datetime.utcnow().hour)
     if datetime.datetime.utcnow().hour == 20:
         message = f"Campsite Exception: {e}"
         print(message)
