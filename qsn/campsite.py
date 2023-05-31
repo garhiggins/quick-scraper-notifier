@@ -76,7 +76,7 @@ def process_response(availabilities):
 def fetch_availability(start_date):
     availability = {}
     for campground_id in args.campground_ids.split(","):
-        for i in range(1):
+        for i in range(5):
             if not args.start_date:
                 raise Exception("--start_date is required")
             start_of_month = start_date.replace(day=1)
@@ -96,7 +96,7 @@ def fetch_availability(start_date):
                 availability[campground_id] = response.json()
                 break
             else:
-                time.sleep(28)
+                time.sleep(3)
         else:
             raise Exception(f"Received [{response.status_code}] from recreation.gov")
         if not args.dry_run:
