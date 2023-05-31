@@ -3,6 +3,8 @@ import collections
 import datetime
 import dateutil.parser
 import os
+import signal
+import threading
 import time
 import requests
 import urllib.parse
@@ -21,6 +23,8 @@ parser.add_argument("--twilio_token")
 parser.add_argument("--twilio_phone_to")
 parser.add_argument("--twilio_phone_from")
 
+parser.add_argument("--countinuous", action="store_true")
+
 args = parser.parse_args()
 
 CAMPGROUND_NAMES = {
@@ -37,7 +41,6 @@ def make_twilio_client():
     return Client(twilio_sid, twilio_token)
 
 
-client = make_twilio_client()
 twilio_phone_to = args.twilio_phone_to or os.environ.get("TWILIO_PHONE_TO")
 twilio_phone_from = args.twilio_phone_from or os.environ.get("TWILIO_PHONE_FROM")
 
@@ -62,6 +65,7 @@ def process_response(availabilities):
         )
         print(message)
         if not args.dry_run:
+            client = make_twilio_client()
             client.messages.create(
                 to=twilio_phone_to,
                 from_=twilio_phone_from,
@@ -100,15 +104,34 @@ def fetch_availability(start_date):
     return availability
 
 
+kill_signal = threading.Event()
+
+
+# Watch for kill signal and gracefully shutdown
+def kill_watcher(signal, frame):
+    print("Received signal %s" % signal)
+    kill_signal.set()
+
+
+for sig in [signal.SIGINT, signal.SIGTERM]:
+    signal.signal(sig, kill_watcher)
+
+
 start_date = dateutil.parser.parse(args.start_date)
 try:
-    availabilities = fetch_availability(start_date)
-    process_response(availabilities)
+    count = 0
+    while count < 1 or args.countinuous:
+        availabilities = fetch_availability(start_date)
+        process_response(availabilities)
+        if args.countinuous and kill_signal.wait(timeout=30):
+            break
+        count += 1
 except Exception as e:
     if datetime.datetime.utcnow().hour == 20:
         message = f"Campsite Exception: {e}"
         print(message)
         if not args.dry_run:
+            client = make_twilio_client()
             client.messages.create(
                 to=twilio_phone_to,
                 from_=twilio_phone_from,
