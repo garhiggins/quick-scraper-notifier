@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description="Scrape a url for a value.")
 parser.add_argument("campground_ids")  # 232447
 parser.add_argument("--dry_run", action="store_true")
 parser.add_argument("--start_date")  # 2023-05-01T00%3A00%3A00.000Z
-# parser.add_argument("--end_date")  # 2023-05-01T00%3A00%3A00.000Z
+parser.add_argument("--nights", type=int, default=1)
 # parser.add_argument("--site_name")
 
 parser.add_argument("--twilio_sid")
@@ -23,7 +23,7 @@ parser.add_argument("--twilio_token")
 parser.add_argument("--twilio_phone_to")
 parser.add_argument("--twilio_phone_from")
 
-parser.add_argument("--countinuous", action="store_true")
+parser.add_argument("--iterations", type=int, default=1)
 
 args = parser.parse_args()
 
@@ -46,23 +46,30 @@ twilio_phone_from = args.twilio_phone_from or os.environ.get("TWILIO_PHONE_FROM"
 
 
 def process_response(availabilities):
-    open_campgrounds = collections.defaultdict(list)
+    open_campgrounds = collections.defaultdict(lambda: collections.defaultdict(int))
     for campground_id, availability in availabilities.items():
         for campsite in availability["campsites"].values():
-            availability = campsite["availabilities"].get(
-                start_date.strftime("%Y-%m-%dT00:00:00Z")
-            )
-            if availability == "Available":
-                CAMPGROUND_NAMES[
-                    campground_id
-                ] if campground_id in CAMPGROUND_NAMES else campground_id
-                open_campgrounds[campground_id].append(campsite["site"])
+            for i in range(args.nights):
+                day = (start_date + datetime.timedelta(days=i)).strftime(
+                    "%Y-%m-%dT00:00:00Z"
+                )
+                availability = campsite["availabilities"].get(day)
+                if availability == "Available":
+                    open_campgrounds[campground_id][campsite["site"]] += 1
 
     if open_campgrounds:
-        message = "\n".join(
-            f"{CAMPGROUND_NAMES[campground_id] if campground_id in CAMPGROUND_NAMES else campground_id} has {len(campsite_name)} sites available on {start_date.strftime('%Y-%m-%d')}."
-            for campground_id, campsite_name in open_campgrounds.items()
-        )
+        messages = []
+        for campground_id, campsites in open_campgrounds.items():
+            max_stay = max(campsites.values())
+            campground_name = (
+                CAMPGROUND_NAMES[campground_id]
+                if campground_id in CAMPGROUND_NAMES
+                else campground_id
+            )
+            messages.append(
+                f"{campground_name} has {len(campsites)} sites available on {start_date.strftime('%Y-%m-%d')} for a max stay of {max_stay}."
+            )
+        message = "\n".join(messages)
         print(message)
         if not args.dry_run:
             client = make_twilio_client()
@@ -120,12 +127,12 @@ for sig in [signal.SIGINT, signal.SIGTERM]:
 start_date = dateutil.parser.parse(args.start_date)
 try:
     count = 0
-    while count < 1 or args.countinuous:
+    while count < args.iterations:
         availabilities = fetch_availability(start_date)
         process_response(availabilities)
-        if args.countinuous and kill_signal.wait(timeout=30):
-            break
         count += 1
+        if count < args.iterations and kill_signal.wait(timeout=30):
+            break
 except Exception as e:
     if datetime.datetime.utcnow().hour == 20:
         message = f"Campsite Exception: {e}"
